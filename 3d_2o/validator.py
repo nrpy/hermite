@@ -17,14 +17,14 @@ def main():
             coeffs = importlib.import_module(coeffs_module_name)
         except ImportError:
             print(f"Error: Module '{coeffs_module_name}.py' not found.")
-            continue
+            sys.exit(1)
 
         try:
             # Dynamically import the trusted_coeffs_* module
             trusted_coeffs = importlib.import_module(trusted_coeffs_module_name)
         except ImportError:
             print(f"Error: Module '{trusted_coeffs_module_name}.py' not found.")
-            continue
+            sys.exit(1)
 
         # Retrieve all attributes from coeffs module that start with 'coeffs_[base]__'
         coeffs_vars = [
@@ -37,7 +37,7 @@ def main():
             print(
                 f"No variables found in '{coeffs_module_name}.py' matching pattern 'coeffs_{base}__*'."
             )
-            continue
+            sys.exit(1)
 
         for var in coeffs_vars:
             # Construct the corresponding trusted_coeffs_* variable name
@@ -49,7 +49,7 @@ def main():
                 print(
                     f"Warning: '{trusted_var}' not found in '{trusted_coeffs_module_name}.py'. Skipping validation."
                 )
-                continue
+                sys.exit(1)
 
             # Retrieve the variables from both modules
             coeffs_value = getattr(coeffs, var)
@@ -65,7 +65,7 @@ def main():
             except AssertionError as e:
                 print(f"Validation Failed: '{trusted_var}' != '{var}'\n")
                 print(e)
-                sys.exit(1)  # Exit on first failure, remove if you want to continue
+                sys.exit(1)
 
     print("All validations completed successfully.")
 
