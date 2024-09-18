@@ -359,7 +359,7 @@ if __name__ == "__main__":
     p_expr, coeff_dict, data_vars, derivatives = main()
 
     # Process the interpolation polynomial (I)
-    output_dir = "3d.coeffs/3d.cube.order2"
+    output_dir = "3d_coeffs/3d_cube_order2"
     print("Constructing interpolating polynomial coefficients...")
     start_time = time.time()
 
