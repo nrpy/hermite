@@ -10,9 +10,9 @@
  * [`Python 3.6+`](https://www.python.org/)
  * [`sympy`](https://sympy.org/)
 
-## Validation notes:
+## Validation:
 
-Interpolation coefficients validated to agree perfectly with the trusted, `Maple`-generated codes in [`AEILocalInterp`](https://bitbucket.org/cactuscode/numerical/src/master/AEILocalInterp/)
+Interpolation coefficients have been validated to agree perfectly with the trusted, `Maple`-generated codes in [`AEILocalInterp`](https://bitbucket.org/cactuscode/numerical/src/master/AEILocalInterp/)
 
 Validation dependencies: NRPy, installed via `pip install nrpy` , [`GNU sed`](https://www.gnu.org/software/sed/).
 
