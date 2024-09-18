@@ -12,9 +12,11 @@ from itertools import product
 import sympy as sp
 from sympy.printing.pycode import PythonCodePrinter
 
+
 def DATA(i, j, k):
     """Return a sympy Symbol for DATA at position (i, j, k)."""
     return sp.Symbol(f"DATA_{i}_{j}_{k}")
+
 
 def create_coefficients():
     """Create symbolic coefficients for the interpolation polynomial."""
@@ -24,6 +26,7 @@ def create_coefficients():
             for k in range(4):
                 coeffs[(i, j, k)] = sp.Symbol(f"c{i}{j}{k}")
     return coeffs
+
 
 def create_interpolation_polynomial(coeffs):
     """Create the interpolation polynomial p(x, y, z)."""
@@ -35,6 +38,7 @@ def create_interpolation_polynomial(coeffs):
     )
     return p_expr
 
+
 def get_positions():
     """Get grid positions and function positions."""
     # Grid positions from -3 to +3 (inclusive)
@@ -43,6 +47,7 @@ def get_positions():
     fn_positions = list(product([0, 1], repeat=3))
     return grid_positions, fn_positions
 
+
 def build_function_value_equations(p_expr, fn_positions):
     """Build equations for function values at specified positions."""
     equations = []
@@ -50,6 +55,7 @@ def build_function_value_equations(p_expr, fn_positions):
         eq = sp.Eq(p_expr.subs({x_var: i, y_var: j, z_var: k}), DATA(i, j, k))
         equations.append(eq)
     return equations
+
 
 def compute_derivatives(p_expr):
     """Compute symbolic derivatives of the interpolation polynomial."""
@@ -62,6 +68,7 @@ def compute_derivatives(p_expr):
     dpdxdydz = sp.diff(p_expr, x_var, y_var, z_var)
     return dpdx, dpdy, dpdz, dpdxdy, dpdxdz, dpdydz, dpdxdydz
 
+
 def finite_difference_approximations():
     """Define finite difference approximations for derivatives based on the Maple code."""
     h = 1  # Grid spacing
@@ -71,22 +78,27 @@ def finite_difference_approximations():
         return sp.Rational(1, 2) * (-f(x0 - 1) + f(x0 + 1))
 
     def dx_5point(f, x0):
-        return sp.Rational(1, 12) * (f(x0 - 2) - 8 * f(x0 - 1) + 8 * f(x0 + 1) - f(x0 + 2))
+        return sp.Rational(1, 12) * (
+            f(x0 - 2) - 8 * f(x0 - 1) + 8 * f(x0 + 1) - f(x0 + 2)
+        )
 
     # First derivatives using 5-point stencil
     def deriv_3d_dx(i, j, k):
         def f(mi):
             return DATA(i + mi, j, k)
+
         return dx_5point(f, 0)
 
     def deriv_3d_dy(i, j, k):
         def f(mj):
             return DATA(i, j + mj, k)
+
         return dx_5point(f, 0)
 
     def deriv_3d_dz(i, j, k):
         def f(mk):
             return DATA(i, j, k + mk)
+
         return dx_5point(f, 0)
 
     # Mixed derivatives using nested 5-point stencils
@@ -94,21 +106,27 @@ def finite_difference_approximations():
         def f(mi):
             def g(mj):
                 return DATA(i + mi, j + mj, k)
+
             return dx_5point(g, 0)
+
         return dx_5point(f, 0)
 
     def deriv_3d_dxz(i, j, k):
         def f(mi):
             def g(mk):
                 return DATA(i + mi, j, k + mk)
+
             return dx_5point(g, 0)
+
         return dx_5point(f, 0)
 
     def deriv_3d_dyz(i, j, k):
         def f(mj):
             def g(mk):
                 return DATA(i, j + mj, k + mk)
+
             return dx_5point(g, 0)
+
         return dx_5point(f, 0)
 
     def deriv_3d_dxyz(i, j, k):
@@ -116,15 +134,25 @@ def finite_difference_approximations():
             def g(mj):
                 def h(mk):
                     return DATA(i + mi, j + mj, k + mk)
+
                 return dx_5point(h, 0)
+
             return dx_5point(g, 0)
+
         return dx_5point(f, 0)
 
-    return deriv_3d_dx, deriv_3d_dy, deriv_3d_dz, deriv_3d_dxy, deriv_3d_dxz, deriv_3d_dyz, deriv_3d_dxyz
+    return (
+        deriv_3d_dx,
+        deriv_3d_dy,
+        deriv_3d_dz,
+        deriv_3d_dxy,
+        deriv_3d_dxz,
+        deriv_3d_dyz,
+        deriv_3d_dxyz,
+    )
 
-def build_derivative_matching_equations(
-    derivatives, fd_approximations, fn_positions
-):
+
+def build_derivative_matching_equations(derivatives, fd_approximations, fn_positions):
     """Build equations for derivative matching at specified positions."""
     equations = []
     (
@@ -150,14 +178,21 @@ def build_derivative_matching_equations(
         eq_dx = sp.Eq(dpdx.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dx(i, j, k))
         eq_dy = sp.Eq(dpdy.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dy(i, j, k))
         eq_dz = sp.Eq(dpdz.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dz(i, j, k))
-        eq_dxy = sp.Eq(dpdxdy.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dxy(i, j, k))
-        eq_dxz = sp.Eq(dpdxdz.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dxz(i, j, k))
-        eq_dyz = sp.Eq(dpdydz.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dyz(i, j, k))
+        eq_dxy = sp.Eq(
+            dpdxdy.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dxy(i, j, k)
+        )
+        eq_dxz = sp.Eq(
+            dpdxdz.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dxz(i, j, k)
+        )
+        eq_dyz = sp.Eq(
+            dpdydz.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dyz(i, j, k)
+        )
         eq_dxyz = sp.Eq(
             dpdxdydz.subs({x_var: i, y_var: j, z_var: k}), deriv_3d_dxyz(i, j, k)
         )
         equations.extend([eq_dx, eq_dy, eq_dz, eq_dxy, eq_dxz, eq_dyz, eq_dxyz])
     return equations
+
 
 def solve_equations(equations, unknown_coeffs):
     """Solve the system of equations for the unknown coefficients."""
@@ -168,10 +203,12 @@ def solve_equations(equations, unknown_coeffs):
     coeff_dict = dict(zip(unknown_coeffs, solution))
     return coeff_dict
 
+
 def collect_data_variables(grid_positions):
     """Collect data variables based on grid positions."""
     data_vars_local = [DATA(i, j, k) for i, j, k in grid_positions]
     return data_vars_local
+
 
 def format_index(i):
     """Format index for variable names."""
@@ -181,6 +218,7 @@ def format_index(i):
     if i > 0:
         return f"p{i}"
     return f"m{abs(i)}"
+
 
 class CustomPythonCodePrinter(PythonCodePrinter):
     """Custom code printer to ensure sp.Rational is used in the output."""
@@ -200,6 +238,7 @@ class CustomPythonCodePrinter(PythonCodePrinter):
     def _rate_index_position(self, *args, **kwargs):
         """Stub method."""
         return 0
+
 
 def output_expressions_to_py(coeff_exprs, cse_results, filename, coeffs_name_prefix):
     """
@@ -259,11 +298,14 @@ def output_expressions_to_py(coeff_exprs, cse_results, filename, coeffs_name_pre
             i_formatted = format_index(i_idx)
             j_formatted = format_index(j_idx)
             k_formatted = format_index(k_idx)
-            coeff_name = f"{coeffs_name_prefix}coeff_{i_formatted}_{j_formatted}_{k_formatted}"
+            coeff_name = (
+                f"{coeffs_name_prefix}coeff_{i_formatted}_{j_formatted}_{k_formatted}"
+            )
             # Now, expr may be an expression involving temporary variables
             expr_code = printer.doprint(expr)
             line = f"{coeff_name} = {expr_code}\n\n"
             file_obj.write(line)
+
 
 def process_derivative(
     deriv_name,
@@ -294,9 +336,7 @@ def process_derivative(
             coeff_exprs_deriv.append((dv_sym, coeff_expr))
     expressions_deriv = [expr for _, expr in coeff_exprs_deriv]
     cse_results_deriv = sp.cse(expressions_deriv)
-    coeffs_filename = os.path.join(
-        output_dir_local, f"coeffs_{deriv_name}.py"
-    )
+    coeffs_filename = os.path.join(output_dir_local, f"coeffs_{deriv_name}.py")
     coeffs_name_prefix_local = f"coeffs_{deriv_name}__"
     os.makedirs(os.path.dirname(coeffs_filename), exist_ok=True)
     output_expressions_to_py(
@@ -308,8 +348,10 @@ def process_derivative(
         f"Finished processing derivative '{deriv_name}' in {end_time_local - start_time_local:.2f} seconds"
     )
 
+
 # Define symbols globally to avoid redefining from outer scope
 x_var, y_var, z_var = sp.symbols("x y z")
+
 
 def main():
     """Main function to orchestrate the computation of symbolic coefficients."""
@@ -348,6 +390,7 @@ def main():
 
     return p_expr, coeff_dict_local, data_vars_local, derivatives
 
+
 if __name__ == "__main__":
     # Run the main function to get necessary variables
     p_expr, coeff_dict, data_vars, derivatives = main()
@@ -385,9 +428,12 @@ if __name__ == "__main__":
         ("dx", derivatives[0]),
         ("dy", derivatives[1]),
         ("dz", derivatives[2]),
+        ("dxx", sp.diff(p_expr, x_var, x_var)),
         ("dxy", derivatives[3]),
         ("dxz", derivatives[4]),
+        ("dyy", sp.diff(p_expr, y_var, y_var)),
         ("dyz", derivatives[5]),
+        ("dzz", sp.diff(p_expr, z_var, z_var)),
     ]
 
     # Prepare arguments for multiprocessing
@@ -401,4 +447,6 @@ if __name__ == "__main__":
     with multiprocessing.Pool() as pool:
         pool.starmap(process_derivative, args_list)
     end_time = time.time()
-    print(f"Finished processing all derivatives in {end_time - start_time:.2f} seconds.")
+    print(
+        f"Finished processing all derivatives in {end_time - start_time:.2f} seconds."
+    )

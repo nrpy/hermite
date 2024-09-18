@@ -6,8 +6,7 @@ import nrpy.validate_expressions.validate_expressions as ve
 
 def main():
     # List of base filenames without extensions
-    # bases = ["dx", "dxx", "dxy", "dxz", "dy", "dyy", "dyz", "dz", "dzz", "I"]
-    bases = ["dx", "dxy", "dxz", "dy", "dyz", "dz", "I"]
+    bases = ["dx", "dxx", "dxy", "dxz", "dy", "dyy", "dyz", "dz", "dzz", "I"]
 
     for base in bases:
         coeffs_module_name = f"3d_coeffs.3d_cube_order3.coeffs_{base}"
