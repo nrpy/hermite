@@ -5,6 +5,11 @@
 * 3D interpolation at 2nd-order accuracy (in `3d_2o`)
 * 3D interpolation at 3rd-order accuracy (in `3d_3o`)
 
+## Requirements
+
+ * [`Python 3.6+`](https://www.python.org/)
+ * [`sympy`](https://sympy.org/)
+
 ## Validation notes:
 
 Interpolation coefficients validated to agree perfectly with the trusted, `Maple`-generated codes in [`AEILocalInterp`](https://bitbucket.org/cactuscode/numerical/src/master/AEILocalInterp/)
