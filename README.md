@@ -19,3 +19,7 @@ Validation dependencies: NRPy, installed via `pip install nrpy` , [`GNU sed`](ht
 Instructions:
  1. Go into appropriate directory
  1. Run ./validate.sh
+
+## Additional documentation:
+
+[`AEILocalInterp` thorn guide](https://einsteintoolkit.org/thornguide/Numerical/AEILocalInterp/documentation.html)
