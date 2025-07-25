@@ -1,0 +1,206 @@
+% !TEX TS-program = pdflatex
+%================================================================
+% 3D Hermite Interpolation with 5-Point Derivative Stencils
+% A Synthesized Pedagogical Document (Final Corrected Version 2)
+%================================================================
+\documentclass[12pt]{article}
+
+%----------- Essential Packages -------------------------------------
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm, mathtools, bm}
+\usepackage{physics}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+%----------- Document Setup -----------------------------------------
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\setlist{topsep=3pt, itemsep=2pt}
+\linespread{1.1}
+
+%----------- Custom Macros ------------------------------------------
+% Note: \dd and \order are provided by the 'physics' package.
+\newcommand{\p}{\partial} % Definition for partial derivative
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+\newcommand{\vect}[1]{\mathbf{#1}}
+\newcommand{\data}[3]{D_{#1,#2,#3}}
+\newcommand{\kron}{\otimes}
+
+%====================================================================
+\title{\textbf{Mathematical Foundations of a Trivariate Hermite Interpolation Scheme}}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document provides a detailed pedagogical framework for constructing a three-dimensional (trivariate) Hermite interpolating polynomial over a unit cube. The objective is to determine a unique tricubic polynomial, $p(x, y, z)$, that matches not only specified function values at the eight vertices of the cube but also the values of its first, mixed-second, and mixed-third partial derivatives at these same points. The required derivative values are approximated using a 5-point centered finite difference stencil on a discrete grid of known data points. We present the interpolation problem, the corresponding basis functions via a tensor-product construction, the explicit formulation of the resulting linear system, and a discussion of the method's accuracy and practical implementation.
+\end{abstract}
+
+\tableofcontents
+
+%====================================================================
+\section{The Interpolation Problem}
+
+Let $f(x, y, z)$ be a sufficiently smooth function for which we have sampled values on a uniform Cartesian grid. Our goal is to construct a polynomial $p(x, y, z)$ that provides a high-quality approximation of $f$ within a single grid cell, which we normalize to be the unit cube $[0, 1]^3$.
+
+The interpolating polynomial is chosen to be a \textbf{tricubic polynomial}, meaning it is a polynomial of degree at most three in each of the variables $x$, $y$, and $z$. The general form of such a polynomial is:
+\begin{equation}
+    p(x, y, z) = \sum_{i=0}^{3} \sum_{j=0}^{3} \sum_{k=0}^{3} c_{ijk} x^i y^j z^k
+    \label{eq:poly_form}
+\end{equation}
+This polynomial is defined by $4 \times 4 \times 4 = 64$ unknown coefficients, denoted $c_{ijk}$. To uniquely determine these coefficients, we must establish a system of 64 independent linear equations.
+
+\subsection{Hermite Interpolation Constraints}
+
+The 64 constraints are derived from \textbf{Hermite interpolation} conditions imposed at the 8 vertices of the unit cube, $V = \{ (\alpha, \beta, \gamma) \mid \alpha, \beta, \gamma \in \{0, 1\} \}$. At each of these 8 vertices, we enforce 8 conditions by requiring that the polynomial's value and its partial derivatives match those of the function $f$. The eight required quantities at each vertex are:
+\begin{enumerate}
+    \item The function value: $p$
+    \item The three first-order partial derivatives: $\dfrac{\p p}{\p x}$, $\dfrac{\p p}{\p y}$, $\dfrac{\p p}{\p z}$
+    \item The three second-order mixed partial derivatives: $\dfrac{\p^2 p}{\p x \p y}$, $\dfrac{\p^2 p}{\p x \p z}$, $\dfrac{\p^2 p}{\p y \p z}$
+    \item The third-order mixed partial derivative: $\dfrac{\p^3 p}{\p x \p y \p z}$
+\end{enumerate}
+This provides $1+3+3+1 = 8$ conditions per vertex, for a total of $8 \times 8 = 64$ constraints, which exactly matches the number of unknown coefficients $c_{ijk}$.
+
+%====================================================================
+\section{Warm-Up: 1D Cubic Hermite Interpolation}
+\label{sec:1d_warmup}
+
+To build intuition, let us first recall the one-dimensional cubic Hermite interpolant on the interval $[0,1]$. Given four pieces of data—the function values $f(0), f(1)$ and the derivative values $f'(0), f'(1)$—we can find a unique cubic polynomial $p(t) = a_0 + a_1 t + a_2 t^2 + a_3 t^3$ that satisfies these four conditions.
+
+This polynomial can be elegantly expressed using the \textbf{Hermite basis functions}:
+\begin{align}
+    H_{00}(t) &= 2t^3 - 3t^2 + 1 & H_{10}(t) &= t^3 - 2t^2 + t \\
+    H_{01}(t) &= -2t^3 + 3t^2 & H_{11}(t) &= t^3 - t^2
+\end{align}
+These basis functions are "dual" to the data, e.g., $H_{00}(t)$ is 1 at $t=0$ and has zero value and derivative at $t=1$, while $H_{10}(t)$ has a derivative of 1 at $t=0$ and zero value and derivative at $t=1$. The interpolant is then a linear combination:
+\begin{equation}
+    p(t) = f(0) H_{00}(t) + f(1) H_{01}(t) + f'(0) H_{10}(t) + f'(1) H_{11}(t)
+\end{equation}
+This "basis function" approach is powerful and can be extended to three dimensions using a tensor-product construction.
+
+%====================================================================
+\section{Finite Difference Approximation of Derivatives}
+
+In practice, the true derivative values of $f$ are unknown. We approximate them using the known data values, $\data{i}{j}{k}$, on a surrounding integer grid. Let the grid spacing be $h$, which we set to $h=1$ for simplicity.
+
+\subsection{The 5-Point Stencil for First Derivatives}
+
+The first partial derivatives are approximated using a 5-point centered finite difference formula, which is fourth-order accurate. For a single-variable function $g(x)$, the stencil is:
+\begin{equation}
+    g'(x_0) \approx \frac{g(x_0-2h) - 8g(x_0-h) + 8g(x_0+h) - g(x_0+2h)}{12h}
+\end{equation}
+Let $D_x$ denote this finite difference operator. For our 3D function at a grid point $(i,j,k)$, the partial derivatives are approximated as:
+\begin{align}
+    \frac{\p f}{\p x}\bigg|_{(i,j,k)} &\approx D_x f(i,j,k) = \frac{1}{12} \left( \data{i-2}{j}{k} - 8\data{i-1}{j}{k} + 8\data{i+1}{j}{k} - \data{i+2}{j}{k} \right) \\
+    \frac{\p f}{\p y}\bigg|_{(i,j,k)} &\approx D_y f(i,j,k) = \frac{1}{12} \left( \data{i}{j-2}{k} - 8\data{i}{j-1}{k} + 8\data{i}{j+1}{k} - \data{i}{j+2}{k} \right) \\
+    \frac{\p f}{\p z}\bigg|_{(i,j,k)} &\approx D_z f(i,j,k) = \frac{1}{12} \left( \data{i}{j}{k-2} - 8\data{i}{j}{k-1} + 8\data{i}{j+1}{k} - \data{i}{j+2}{k} \right)
+\end{align}
+
+\subsection{Approximating Mixed Partial Derivatives}
+
+Mixed partial derivatives are computed by applying these 1D finite difference operators sequentially. Since the operators are linear, their order of application does not matter. For example:
+\begin{equation}
+    \frac{\p^2 f}{\p x \p y}\bigg|_{(i,j,k)} \approx D_x \left( D_y f \right)(i,j,k)
+\end{equation}
+Expanding this expression reveals that the approximation for $\frac{\p^2 f}{\p x \p y}$ is a linear combination of 25 data points in a $5 \times 5$ stencil centered on $(i,j,k)$. Similarly, the approximation for $\frac{\p^3 f}{\p x \p y \p z}$ involves a $5 \times 5 \times 5$ stencil of 125 data points. To compute these derivatives at the cube vertices (e.g., at $(0,0,0)$ and $(1,1,1)$), we need data from a grid spanning indices from -3 to +3 in each dimension.
+
+%====================================================================
+\section{Constructing and Solving the Linear System}
+
+By substituting the analytical derivatives of the polynomial $p(x,y,z)$ from Eq. \eqref{eq:poly_form} on the left side and the finite-difference approximations for the derivatives of $f$ on the right side of the Hermite conditions, we form a complete system of 64 linear equations for the 64 unknown coefficients $c_{ijk}$.
+
+This system can be written in the classic matrix form:
+\begin{equation}
+    \mat{A} \vect{c} = \vect{d}
+\end{equation}
+where:
+\begin{itemize}
+    \item $\vect{c}$ is a $64 \times 1$ column vector containing the unknown coefficients $c_{ijk}$, ordered lexicographically.
+    \item $\vect{d}$ is a $64 \times 1$ column vector containing the known data: the values $\data{i}{j}{k}$ at the vertices and the finite-difference approximations of the required derivatives at those same vertices.
+    \item $\mat{A}$ is a $64 \times 64$ matrix whose entries are constants derived from evaluating the polynomial basis functions ($x^i y^j z^k$) and their derivatives at the 8 vertices. This matrix is invertible, guaranteeing a unique solution for the coefficients.
+\end{itemize}
+
+\subsection{Illustrative Examples of Equations}
+
+Let's examine how specific equations in the system are formed.
+
+\paragraph{Example 1: Value constraint at the origin.}
+The constraint $p(0,0,0) = f(0,0,0)$ is the simplest. Evaluating Eq. \eqref{eq:poly_form} at $(0,0,0)$ yields:
+\begin{equation}
+    p(0,0,0) = c_{000} \implies c_{000} = \data{0}{0}{0}
+\end{equation}
+
+\paragraph{Example 2: Derivative constraint at the origin.}
+The constraint $\frac{\p p}{\p x}\big|_{(0,0,0)} = D_x f(0,0,0)$ gives:
+\begin{equation}
+    \frac{\p p}{\p x}\bigg|_{(0,0,0)} = c_{100} \implies c_{100} = \frac{1}{12} \left( \data{-2}{0}{0} - 8\data{-1}{0}{0} + 8\data{1}{0}{0} - \data{2}{0}{0} \right)
+\end{equation}
+
+\paragraph{Example 3: Derivative constraint at a non-origin vertex.}
+The constraint $\frac{\p p}{\p x}\big|_{(1,0,0)} = D_x f(1,0,0)$ is more complex. The left-hand side is:
+\begin{align}
+    \frac{\p}{\p x}\left(\sum_{i=0}^{3} \sum_{j=0}^{3} \sum_{k=0}^{3} c_{ijk} x^i y^j z^k\right)\bigg|_{(1,0,0)} &= \left(\sum_{i=1}^{3} c_{i00} \cdot i \cdot x^{i-1}\right)\bigg|_{x=1} \\
+    &= c_{100} + 2c_{200} + 3c_{300}
+\end{align}
+This gives the full equation:
+\begin{equation}
+    c_{100} + 2c_{200} + 3c_{300} = \frac{1}{12} \left( \data{-1}{0}{0} - 8\data{0}{0}{0} + 8\data{2}{0}{0} - \data{3}{0}{0} \right)
+\end{equation}
+The remaining 61 equations are constructed in a similar fashion. Solving the full $64 \times 64$ linear system $\vect{c} = \mat{A}^{-1} \vect{d}$ yields a unique expression for each coefficient $c_{ijk}$ as a linear combination of the data values $\data{i'}{j'}{k'}$.
+
+\subsection{Advanced View: Kronecker Product Structure}
+The system matrix $\mat{A}$ possesses a highly structured form that arises from the tensor-product nature of the problem. If $\mat{T}$ is the $4 \times 4$ matrix that maps the 1D Hermite data $\{f(0), f(1), f'(0), f'(1)\}$ to the 1D polynomial coefficients $\{a_0, a_1, a_2, a_3\}$, then the full 3D system matrix can be expressed as a Kronecker product:
+\begin{equation}
+    \mat{A} = \mat{T} \kron \mat{T} \kron \mat{T}
+\end{equation}
+This structure can be exploited for highly efficient numerical solutions, though direct inversion is also feasible for a fixed $64 \times 64$ system.
+
+%====================================================================
+\section{Method Summary and Error Considerations}
+
+\subsection{Practical Recipe}
+The mathematical procedure can be summarized in the following steps:
+\begin{enumerate}
+    \item \textbf{Collect Data:} For a target cube, gather the function values $\data{i}{j}{k}$ on the surrounding $7\times7\times7$ grid of points.
+    \item \textbf{Approximate Derivatives:} At each of the 8 cube vertices, compute the 7 required derivative approximations using the 5-point stencil formulas. This yields 56 derivative values.
+    \item \textbf{Assemble System:} Construct the $64 \times 1$ data vector $\vect{d}$ from the 8 function values and 56 derivative approximations.
+    \item \textbf{Solve for Coefficients:} Solve the linear system $\mat{A} \vect{c} = \vect{d}$ to find the 64 coefficients $c_{ijk}$. Since the matrix $\mat{A}$ is constant for any unit cube, its inverse $\mat{A}^{-1}$ can be pre-computed once and stored.
+    \item \textbf{Evaluate Polynomial:} Use the now-known coefficients in Eq. \eqref{eq:poly_form} to evaluate the interpolating polynomial $p(x,y,z)$ or its derivatives at any point within the unit cube.
+\end{enumerate}
+
+\subsection{Error Analysis}
+Two sources of error contribute to the final accuracy of the interpolant:
+\begin{enumerate}
+    \item \textbf{Finite Difference Error:} The 5-point stencil for the first derivative has a truncation error of $\mathcal{O}(h^4)$, assuming the function $f$ is at least five times continuously differentiable ($f \in C^5$). The mixed derivatives maintain this $\mathcal{O}(h^4)$ accuracy.
+    \item \textbf{Interpolation Error:} Even with exact derivative data, the tricubic Hermite interpolant itself has an approximation error relative to $f$. For a function in $C^4$, this error is also $\mathcal{O}(h^4)$.
+\end{enumerate}
+Therefore, the overall scheme is \textbf{fourth-order accurate}, providing a highly accurate local approximation for sufficiently smooth functions and small grid spacing $h$.
+
+%====================================================================
+\appendix
+\section{1D Hermite Basis Functions and Their Derivatives}
+For reference, Table \ref{tab:1dHermite} lists the 1D cubic Hermite basis functions from Section \ref{sec:1d_warmup} and their first three derivatives. This table is useful for verifying the properties of the basis and for manual construction of the system matrix $\mat{A}$.
+
+\begin{table}[h!]
+\centering
+\caption{1D cubic Hermite basis functions and their derivatives.}
+\label{tab:1dHermite}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+& \boldsymbol{$H_{00}(t)$} & \boldsymbol{$H_{01}(t)$} & \boldsymbol{$H_{10}(t)$} & \boldsymbol{$H_{11}(t)$} \\
+& \textbf{(Value at 0)} & \textbf{(Value at 1)} & \textbf{(Deriv at 0)} & \textbf{(Deriv at 1)} \\
+\midrule
+$p(t)$      & $2t^3 - 3t^2 + 1$ & $-2t^3 + 3t^2$ & $t^3 - 2t^2 + t$ & $t^3 - t^2$ \\
+$p'(t)$     & $6t^2 - 6t$ & $-6t^2 + 6t$ & $3t^2 - 4t + 1$ & $3t^2 - 2t$ \\
+$p''(t)$    & $12t - 6$ & $-12t + 6$ & $6t - 4$ & $6t - 2$ \\
+$p'''(t)$   & $12$ & $-12$ & $6$ & $6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}
